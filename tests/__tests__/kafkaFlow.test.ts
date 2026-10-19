@@ -81,7 +81,7 @@ it("TC02 - brak pola customer kieruje zamówienie do DLQ", async () => {
 it("TC03 - niepoprawny JSON trafia do DLQ", async () => {
   // 1. Przygotowanie niepoprawnego JSON-a
   const orderId = makeTestOrder().orderId;
-  const invalidJson = '{"orderId":"${orderId}","customer":';
+  const invalidJson = `{"orderId":"${orderId}","customer":`;
 
   // 2. Wysłanie niepoprawnej wiadomości
   await sendRaw(producer, invalidJson, orderId);
@@ -135,7 +135,10 @@ it("TC05 - niepoprawny typ orderId kieruje zamówienie do DLQ", async () => {
   // 2. Zmiana orderId z tekstu na liczbę
   const invalidOrder = {
     ...order,
-    orderId: 12345,
+    orderId: parseInt(
+      order.orderId.replace(/-/g, "").slice(0, 12),
+      16
+    ),
   };
 
   // 3. Wysłanie niepoprawnego zamówienia
