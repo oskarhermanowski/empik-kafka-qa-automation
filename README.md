@@ -58,10 +58,34 @@ docker compose down -v
 ## Twoje notatki (uzupełnij przed oddaniem zadania)
 
 ### Uwagi do uruchomienia
-_(jeśli coś zmieniłeś/aś względem domyślnej konfiguracji, opisz to tutaj)_
+Testy uruchamiane są w środowisku Docker Compose.
+
+Na systemie Windows wymagane było ustawienie końców linii LF w pliku `kafka-init/init-topics.sh`, aby skrypt działał poprawnie w kontenerze Linux.
+
+Po zmianach w kodzie testów należy przebudować obraz:
+
+```bash
+docker compose build tests
+```
+
+Uruchomienie testów:
+
+```bash
+docker compose --profile test run --rm tests
+```
 
 ### Podejście do testowania
-_(2–4 zdania: jak podszedłeś/aś do problemu, jakie decyzje podjąłeś/aś)_
+Zaimplementowałem testy integracyjne obejmujące poprawne przetwarzanie zamówień, obsługę niepoprawnych danych oraz przetwarzanie wielu wiadomości przez Apache Kafka.
+
+Scenariusze pozytywne weryfikują zmianę statusu na PROCESSED i zachowanie danych zamówienia, natomiast scenariusze negatywne sprawdzają przekierowanie błędnych wiadomości do DLQ.
+
+Do izolacji testów wykorzystałem unikalne identyfikatory zamówień oraz niezależne grupy konsumentów Kafka.
+
+Zmodyfikowałem funkcje waitForMessage i collectMessages, aby rozdzielić odbieranie wiadomości od zamykania połączeń, poprawić obsługę błędów oraz zapewnić zwalnianie zasobów.
 
 ### Znane ograniczenia / co zrobiłbym/zrobiłabym inaczej mając więcej czasu
-_(krótka lista)_
+- Testy wymagają uruchomionego środowiska Docker i Kafka.
+- Odczytywanie topiców od początku może wydłużać działanie testów przy dużej liczbie historycznych wiadomości.
+- Warto rozszerzyć testy o dodatkowe przypadki brzegowe i scenariusze awarii brokera.
+- Można rozbudować typowanie wiadomości i ograniczyć użycie typu `any` w helperach.
+- Przy dalszym rozwoju projektu warto dodać automatyczne uruchamianie testów w CI/CD.

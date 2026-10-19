@@ -131,45 +131,58 @@ export async function waitForMessage(
   topic: string,
   matchFn: MatchFn,
   timeoutSeconds: number = DEFAULT_POLL_TIMEOUT_SECONDS
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any | null> {
   const consumer = newConsumer();
-  await consumer.connect();
-  await consumer.subscribe({ topic, fromBeginning: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-  return new Promise((resolve, reject) => {
-    let settled = false;
+  try {
+    // 1. Połączenie z Kafką
+    await consumer.connect();
+    await consumer.subscribe({ topic, fromBeginning: true });
 
-    const finish = async (result: unknown) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        await consumer.disconnect();
-      } finally {
+    // 2. Oczekiwanie na pasującą wiadomość
+    return await new Promise<any | null>((resolve, reject) => {
+      let settled = false;
+
+      const finish = (result: any | null) => {
+        if (settled) return;
+        settled = true;
         resolve(result);
-      }
-    };
+      };
 
-    const timer = setTimeout(() => {
-      void finish(null);
-    }, timeoutSeconds * 1000);
+      const fail = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
 
-    consumer
-      .run({
+      // 3. Limit czasu oczekiwania
+      timer = setTimeout(() => {
+        finish(null);
+      }, timeoutSeconds * 1000);
+
+      // 4. Odbieranie wiadomości
+      void consumer.run({
         eachMessage: async ({ message }: EachMessagePayload) => {
           if (settled) return;
-          const parsed = tryParse(message.value);
-          if (parsed !== null && matchFn(parsed)) {
-            await finish(parsed);
+
+          try {
+            const parsed = tryParse(message.value);
+
+            if (parsed !== null && matchFn(parsed)) {
+              finish(parsed);
+            }
+          } catch (error) {
+            fail(error);
           }
         },
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
+      }).catch(fail);
+    });
+  } finally {
+    // 5. Zamykanie połączenia niezależnie od wyniku
+    if (timer) clearTimeout(timer);
+    await consumer.disconnect();
+  }
 }
 
 /** Zbiera do expectedCount wiadomości spełniających matchFn w limicie czasu. */
@@ -178,49 +191,63 @@ export async function collectMessages(
   matchFn: MatchFn,
   expectedCount: number,
   timeoutSeconds: number = DEFAULT_POLL_TIMEOUT_SECONDS
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any[]> {
+  if (expectedCount <= 0) return [];
+
   const consumer = newConsumer();
-  await consumer.connect();
-  await consumer.subscribe({ topic, fromBeginning: true });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const found: any[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-  return new Promise((resolve, reject) => {
-    let settled = false;
+  try {
+    // 1. Połączenie z Kafką
+    await consumer.connect();
+    await consumer.subscribe({ topic, fromBeginning: true });
 
-    const finish = async () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        await consumer.disconnect();
-      } finally {
+    // 2. Oczekiwanie na wymaganą liczbę wiadomości
+    return await new Promise<any[]>((resolve, reject) => {
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
         resolve(found);
-      }
-    };
+      };
 
-    const timer = setTimeout(() => {
-      void finish();
-    }, timeoutSeconds * 1000);
+      const fail = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
 
-    consumer
-      .run({
+      // 3. Limit czasu oczekiwania
+      timer = setTimeout(() => {
+        finish();
+      }, timeoutSeconds * 1000);
+
+      // 4. Zbieranie pasujących wiadomości
+      void consumer.run({
         eachMessage: async ({ message }: EachMessagePayload) => {
           if (settled) return;
-          const parsed = tryParse(message.value);
-          if (parsed !== null && matchFn(parsed)) {
-            found.push(parsed);
-            if (found.length >= expectedCount) {
-              await finish();
+
+          try {
+            const parsed = tryParse(message.value);
+
+            if (parsed !== null && matchFn(parsed)) {
+              found.push(parsed);
+
+              if (found.length >= expectedCount) {
+                finish();
+              }
             }
+          } catch (error) {
+            fail(error);
           }
         },
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
+      }).catch(fail);
+    });
+  } finally {
+    // 5. Zamykanie połączenia
+    if (timer) clearTimeout(timer);
+    await consumer.disconnect();
+  }
 }

@@ -9,6 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
+    "types": ["jest", "node"],
     "outDir": "./dist",
     "rootDir": "."
   },
