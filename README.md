@@ -55,7 +55,7 @@ docker compose down -v
 
 ---
 
-## Twoje notatki (uzupełnij przed oddaniem zadania)
+## Dokumentacja rozwiązania
 
 ### Uwagi do uruchomienia
 Testy uruchamiane są w środowisku Docker Compose.
@@ -83,7 +83,7 @@ Do izolacji testów wykorzystałem unikalne identyfikatory zamówień oraz nieza
 
 Zmodyfikowałem funkcje waitForMessage i collectMessages, aby rozdzielić odbieranie wiadomości od zamykania połączeń, poprawić obsługę błędów oraz zapewnić zwalnianie zasobów.
 
-### Znane ograniczenia / co zrobiłbym/zrobiłabym inaczej mając więcej czasu
+### Znane ograniczenia i możliwe usprawnienia
 - Testy wymagają uruchomionego środowiska Docker i Kafka.
 - Odczytywanie topiców od początku może wydłużać działanie testów przy dużej liczbie historycznych wiadomości.
 - Warto rozszerzyć testy o dodatkowe przypadki brzegowe i scenariusze awarii brokera.
